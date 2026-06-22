@@ -2,11 +2,12 @@
 import torch
 import torch.nn as nn
 
+
 class ConvBlock(nn.Module):
     """
     A basic building block: two 1D convolutions + BatchNorm + ReLU.
     """
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels: int, out_channels: int) -> None:
         super(ConvBlock, self).__init__()
         self.conv = nn.Sequential(
             nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
@@ -17,15 +18,23 @@ class ConvBlock(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.conv(x)
+
 
 class UNet1D(nn.Module):
     """
     1D U-Net for denoising. Now supports multi-channel input.
     """
-    def __init__(self, in_channels=1, out_channels=1, features=[64, 128, 256, 512]):
+    def __init__(
+        self,
+        in_channels: int = 1,
+        out_channels: int = 1,
+        features: list[int] | None = None,
+    ) -> None:
         super(UNet1D, self).__init__()
+        if features is None:
+            features = [64, 128, 256, 512]
         self.encoder = nn.ModuleList()
         self.decoder = nn.ModuleList()
         self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
@@ -44,8 +53,8 @@ class UNet1D(nn.Module):
             self.decoder.append(ConvBlock(feature * 2, feature))
 
         self.final_conv = nn.Conv1d(features[0], out_channels, kernel_size=1)
-        
-    def encode(self, x):
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
         """
         Runs the input through the encoder and returns the bottleneck feature representation.
         """
@@ -56,7 +65,7 @@ class UNet1D(nn.Module):
         embedding = torch.mean(x, dim=-1)
         return embedding
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         skip_connections = []
         for down in self.encoder:
             x = down(x)
@@ -78,11 +87,12 @@ class UNet1D(nn.Module):
 
         return self.final_conv(x)
 
+
 class ECGClassifier(nn.Module):
     """
     A simple 1D CNN for classifying individual heartbeats.
     """
-    def __init__(self, num_classes=5):
+    def __init__(self, num_classes: int = 5) -> None:
         super(ECGClassifier, self).__init__()
         self.conv_block1 = nn.Sequential(
             nn.Conv1d(in_channels=1, out_channels=32, kernel_size=5, stride=1, padding=2),
@@ -101,9 +111,9 @@ class ECGClassifier(nn.Module):
             nn.Linear(128, num_classes)
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv_block1(x)
         x = self.conv_block2(x)
-        x = x.view(x.size(0), -1) 
+        x = x.view(x.size(0), -1)
         x = self.fc_block(x)
         return x
